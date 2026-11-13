@@ -1,0 +1,38 @@
+Phần 1: Phân tích cơ chế BPE và nguyên nhân tiếng Việt tốn nhiều Token hơn
+Thắc mắc của Hoàng ("AI bị lỗi đếm trùng") là một hiểu lầm phổ biến, nhưng thực tế hệ thống đếm hoàn toàn chính xác. Nguyên nhân cốt lõi đến từ bản chất của thuật toán tách từ BPE (Byte-Pair Encoding) và cấu trúc đặc thù của ngôn ngữ:
+
+Bản chất của Token trong LLM (Không phải 1 từ = 1 token):
+
+Các mô hình ngôn ngữ lớn không đọc từng "từ" (word) trọn vẹn mà chia văn bản thành các đơn vị nhỏ hơn gọi là sub-word units (mảnh từ hoặc ký tự byte) dựa trên tần suất xuất hiện trong giai đoạn huấn luyện (Pre-training).
+
+Sự khác biệt trong việc xử lý tiếng Anh và tiếng Việt của thuật toán BPE:
+
+Tiếng Anh: Do kho dữ liệu huấn luyện (Pre-training dataset) chủ yếu là tiếng Anh, các từ tiếng Anh phổ biến được mã hóa nguyên vẹn thành 1 token duy nhất (hoặc ít mảnh ghép). Ví dụ: từ "supermarket" hoặc "vegetables" chiếm rất ít token. Tỷ lệ quy đổi ở Mẫu A chỉ là 1.18 Tokens/từ.
+
+Tiếng Việt: Tiếng Việt có các dấu thanh (sắc, huyền, hỏi, ngã, nặng) và các nguyên âm có dấu (â, ê, ô, ư, ơ...). Do lượng dữ liệu tiếng Việt trong tập Pre-training ít hơn rất nhiều so với tiếng Anh, từ điển của tokenizer không lưu trữ sẵn các từ tiếng Việt phức hợp. Khi gặp tiếng Việt, thuật toán BPE buộc phải cắt nhỏ từ đó thành các mảnh byte, ký tự rời hoặc từng dấu thanh riêng biệt.
+
+Ví dụ: Từ "hữu cơ" hoặc "tươi ngon" khi qua bộ tokenizer có thể bị bẻ vụn thành nhiều mảnh sub-token (h - ữu - c - o). Điều này khiến Mẫu B tiêu tốn tới 285 Tokens cho 100 từ (tỷ lệ 2.85 Tokens/từ — gấp gần 2.4 lần so với tiếng Anh).
+
+Phần 2: Đề xuất 2 kỹ thuật viết Prompt Tiếng Việt tiết kiệm 30-40% Token
+Để giảm tải lượng token tiêu thụ khi sử dụng AI cho các chiến dịch Marketing bằng tiếng Việt mà vẫn giữ nguyên vẹn ý nghĩa, Hoàng có thể áp dụng 2 kỹ thuật sau:
+
+1. Kỹ thuật sử dụng từ khóa gọn, súc tích và cắt bỏ từ đệm (Concise Prompting)
+Nguyên tắc: Lược bỏ các từ nối, từ cảm thán hoặc văn phong rườm rà không cần thiết trong câu lệnh (Prompt). Tập trung trực tiếp vào các từ khóa cốt lõi mang nghĩa.
+
+Ví dụ áp dụng:
+
+Prompt lãng phí token: "Bạn hãy vui lòng giúp tôi viết một đoạn bài đăng quảng cáo thật là hay và hấp dẫn cho siêu thị MartX về các loại rau củ quả hữu cơ nhé."
+
+Prompt tối ưu (Tiết kiệm ~35% token): "Viết bài quảng cáo ngắn gọn về rau củ hữu cơ MartX."
+
+2. Kỹ thuật chuyển đổi cấu trúc Prompt sang tiếng Anh hoặc Tiếng Việt không dấu / Kết hợp cú pháp mã hóa (Code-switching / Semi-English)
+Nguyên tắc: Do tokenizer xử lý các thuật ngữ chuyên ngành tiếng Anh, cấu trúc markdown hoặc văn bản tiếng Việt không dấu tối ưu hơn tiếng Việt có dấu, việc định hình yêu cầu bằng cấu trúc ngắn gọn hoặc sử dụng từ khóa chuyên ngành tiếng Anh giúp giảm đáng kể số lượng sub-token bị cắt nhỏ.
+
+Ví dụ áp dụng:
+
+Thay vì viết dài dòng bằng tiếng Việt có dấu cho toàn bộ khung câu lệnh, hãy dùng cấu trúc khung kết hợp (giống các khung prompt quốc tế) để AI hiểu ngữ cảnh nhanh hơn với ít token nhất:
+
+Plaintext
+[Role]: Marketing Expert at MartX.
+[Task]: Viết bài PR ngắn gọn, thu hút về: [PRODUCT_NAME].
+[Tone]: Chuyên nghiệp, gần gũi.
